@@ -1,0 +1,136 @@
+import numpy as np
+import random 
+import logging
+
+# Problem Definition
+stock_lengths = [10, 13, 15]
+stock_costs = [100, 130, 150]
+piece_lengths = [3, 4, 5, 6, 7, 8, 9, 10]
+quantities = [5, 2, 1, 2, 4, 2, 1, 3]
+
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+
+
+# Parameters
+num_ants = 10
+num_iterations = 10
+alpha = 1.0  # Pheromone influence
+beta = 1.0   # Heuristic influence
+decay = 0.1  # Pheromone decay rate
+initial_pheromone = 0.1
+
+# Initialize pheromones
+pheromones = np.full((len(stock_lengths), len(piece_lengths)), initial_pheromone)
+
+# Update heuristic to consider current stock usage
+def heuristic_value(stock_index, piece_index):
+    noise = random.uniform(0.9, 1.1)
+    piece_utilization = piece_lengths[piece_index] / stock_lengths[stock_index] * noise
+    return piece_utilization / stock_costs[stock_index]
+
+def apply_local_search(solution, remaining_quantities):
+    improved = True
+    while improved:
+        improved = False
+        for stock_index, activities in solution:
+            for pieces in activities:  # Now correctly handling 'pieces' as each individual activity
+                if not pieces:
+                    continue
+                gaps = stock_lengths[stock_index] - sum(piece_lengths[p] for p in pieces)
+                for j in range(len(piece_lengths)):
+                    if piece_lengths[j] <= gaps and remaining_quantities[j] > 0:
+                        pieces.append(j)
+                        remaining_quantities[j] -= 1
+                        gaps -= piece_lengths[j]
+                        improved = True
+
+                # Try rearranging pieces within and between stocks to minimize the number of stocks used
+                for other_index, other_activities in enumerate(solution):
+                    if stock_index == other_index:
+                        continue
+                    for other_pieces in other_activities:
+                        other_gaps = stock_lengths[other_index] - sum(piece_lengths[p] for p in other_pieces)
+                        for piece in list(pieces):
+                            if piece_lengths[piece] <= other_gaps:
+                                # Move piece to another stock
+                                other_pieces.append(piece)
+                                pieces.remove(piece)
+                                other_gaps -= piece_lengths[piece]
+                                gaps += piece_lengths[piece]
+                                improved = True
+                                break  # Reevaluate after each move
+    return solution
+
+
+
+def update_pheromones(pheromones, solutions, best_cost):
+    for solution, cost in solutions:
+        for stock_index, activities in solution:
+            for activity in activities:
+                for piece_index in activity:
+                    # Update pheromones for each piece used in this activity
+                    pheromones[stock_index][piece_index] += 1 / (cost + 1)
+    pheromones *= (1 - decay)
+
+
+def construct_solution(pheromones, remaining_quantities):
+    solution = []
+    remaining_quantities = remaining_quantities[:]
+    for stock_index in range(len(stock_lengths)):
+        activities = []  # List of activities for this stock type
+        while any(remaining_quantities):
+            activity = []
+            current_length = stock_lengths[stock_index]
+            while current_length > 0 and any(remaining_quantities):
+                probs = [pheromones[stock_index][j] * alpha * heuristic_value(stock_index, j) * beta
+                         if remaining_quantities[j] > 0 and piece_lengths[j] <= current_length else 0
+                         for j in range(len(piece_lengths))]
+                total_prob = sum(probs)
+                if total_prob > 0:
+                    probs /= total_prob
+                    chosen_piece_index = np.random.choice(len(piece_lengths), p=probs)
+                    activity.append(chosen_piece_index)
+                    remaining_quantities[chosen_piece_index] -= 1
+                    current_length -= piece_lengths[chosen_piece_index]
+                else:
+                    break
+            if activity:
+                activities.append(activity)
+        if activities:
+            solution.append((stock_index, activities))
+    return solution
+
+
+def calculate_fitness(solution):
+    cost = 0
+    for stock_index, activities in solution:
+        for activity in activities:
+            if activity:  # Check if this activity is non-empty
+                cost += stock_costs[stock_index]  # Each activity uses a new stock piece
+    return cost
+
+
+def solve():
+    best_solution = None
+    best_cost = float('inf')
+    for _ in range(num_iterations):
+        solutions = []
+        for _ in range(num_ants):
+            remaining_quantities = quantities[:]
+            logging.debug(f"Starting quantities for ant: {remaining_quantities}")
+            solution = construct_solution(pheromones, remaining_quantities)
+            logging.debug(f"Solution before local search: {solution}")
+            solution = apply_local_search(solution, remaining_quantities)
+            logging.debug(f"Solution after local search: {solution}")
+            cost = calculate_fitness(solution)
+            logging.debug(f"Cost of solution: {cost}")
+            solutions.append((solution, cost))
+            if cost < best_cost:
+                best_cost = cost
+                best_solution = solution
+        update_pheromones(pheromones, solutions, best_cost)
+    return best_solution, best_cost
+
+best_solution, best_cost = solve()
+print("Best Solution:", best_solution)
+print("Best Cost:", best_cost)
