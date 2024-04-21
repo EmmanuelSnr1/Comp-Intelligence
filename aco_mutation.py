@@ -27,7 +27,6 @@ def heuristic_value(stock_index, piece_index):
     piece_utilization = piece_lengths[piece_index] / stock_lengths[stock_index]
     return piece_utilization / stock_costs[stock_index]
 
-
 def mutate(solution, mutation_rate):
     for stock_index, activities in enumerate(solution):
         if random.random() < mutation_rate:
@@ -39,7 +38,7 @@ def mutate(solution, mutation_rate):
                     possible_positions = range(len(piece_lengths))
                     new_position = random.choice(possible_positions)
                     activity.insert(new_position, piece_to_mutate)
-    #logging.debug(f"Post-mutation solution: {solution}")
+    logging.debug("Post-mutation solution: {}".format(solution))
 
 def adjust_mutation_rate(previous_cost, current_cost, base_rate):
     if current_cost < previous_cost:  # Improvement found
@@ -62,6 +61,7 @@ def solve_aco():
             if cost < best_cost:
                 best_cost = cost
                 best_solution = solution
+            logging.debug(f"Iteration {iteration}, Ant {_}, Cost: {cost}, Solution: {solution}")
 
         # Update pheromones
         update_pheromones(pheromones, solutions, best_cost)
@@ -72,16 +72,15 @@ def solve_aco():
 
         # Adjust mutation rate based on performance
         current_mutation_rate = adjust_mutation_rate(best_cost, cost, current_mutation_rate)
-        #logging.debug(f"Current mutation rate: {current_mutation_rate}")
+        logging.debug(f"Current mutation rate: {current_mutation_rate}")
 
     return best_solution, best_cost
-
 
 def construct_solution(pheromones, remaining_quantities):
     solution = []
     remaining_quantities = remaining_quantities[:]
     for stock_index in range(len(stock_lengths)):
-        activities = []  # List of activities for this stock type
+        activities = []
         while any(remaining_quantities):
             activity = []
             current_length = stock_lengths[stock_index]
@@ -103,37 +102,30 @@ def construct_solution(pheromones, remaining_quantities):
         if activities:
             solution.append((stock_index, activities))
     return solution
-    
-    
+
 def update_pheromones(pheromones, solutions, best_cost):
     for solution, cost in solutions:
         for stock_index, activities in solution:
             for activity in activities:
                 for piece_index in activity:
-                    # Update pheromones for each piece used in this activity
                     pheromones[stock_index][piece_index] += 1 / (cost + 1)
     pheromones *= (1 - decay)
-    
-    
+
 def calculate_fitness(solution):
     cost = 0
     for stock_index, activities in solution:
         for activity in activities:
-            if activity:  # Check if this activity is non-empty
-                cost += stock_costs[stock_index]  # Each activity uses a new stock piece
+            if activity:
+                cost += stock_costs[stock_index]
     return cost
-
 
 def print_solution(solution, cost):
     print(f"Best Cost: {cost}")
     print("Solution:")
     for stock_index, activities in solution:
-        print(f"Stock Length {stock_lengths[stock_index]}:")
         for activity in activities:
             pieces = [piece_lengths[piece_index] for piece_index in activity]
             print(f"  Pieces cut: {pieces}")
-            print(f"  Total length used: {sum(pieces)} / {stock_lengths[stock_index]}")
-        print()  # Adds a new line for better separation
 
 # Main execution block
 if __name__ == "__main__":
