@@ -1,15 +1,24 @@
 import numpy as np
 import random
 import logging
+import time
 
 # Logging setup
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Problem definition
-stock_lengths = [4300, 4250, 4150, 3950, 3800, 3700, 3550, 3500]
-stock_costs = [86, 85, 83, 79, 68, 66, 64, 63]
-piece_lengths = [2350, 2250, 2200, 2100, 2050, 2000, 1950, 1900, 1850, 1700, 1650, 1350, 1300, 1250, 1200, 1150, 1100, 1050]
-quantities = [2, 4, 4, 15, 6, 11, 6, 15, 13, 5, 2, 9, 3, 6, 10, 4, 8, 3]
+# # Problem definition
+# stock_lengths = [4300, 4250, 4150, 3950, 3800, 3700, 3550, 3500]
+# stock_costs = [86, 85, 83, 79, 68, 66, 64, 63]
+# piece_lengths = [2350, 2250, 2200, 2100, 2050, 2000, 1950, 1900, 1850, 1700, 1650, 1350, 1300, 1250, 1200, 1150, 1100, 1050]
+# quantities = [2, 4, 4, 15, 6, 11, 6, 15, 13, 5, 2, 9, 3, 6, 10, 4, 8, 3]
+
+# Problem Definition
+stock_lengths = [120, 115, 110, 105, 100]
+stock_costs = [12, 11.5, 11, 10.5, 10]
+piece_lengths = [21, 22, 24, 25, 27, 29, 30, 31, 32, 33, 34, 35, 38, 39, 42, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 59, 60, 61, 63, 65, 66, 67]
+quantities = [13, 15, 7, 5, 9, 9, 3, 15, 18, 17, 4, 17, 20, 9, 4, 19, 4, 12, 15, 3, 20, 14, 15, 6, 4, 7, 5, 19, 19, 6, 3, 7, 20, 5, 10, 17]
+2e
+
 
 # ACO Parameters
 num_ants = 10
@@ -119,13 +128,29 @@ def calculate_fitness(solution):
                 cost += stock_costs[stock_index]
     return cost
 
+def calculate_waste(solution):
+    total_waste = 0
+    for stock_index, activities in solution:
+        for activity in activities:
+            used_length = sum(piece_lengths[piece_index] for piece_index in activity)
+            waste_per_piece = stock_lengths[stock_index] - used_length
+            total_waste += waste_per_piece
+    return total_waste
+
+
 def print_solution(solution, cost):
+    start_time = time.time()
+    best_solution, best_cost = solve_aco()
+    end_time = time.time()
+    computation_time = end_time - start_time
     print(f"Best Cost: {cost}")
+    print("Total waste :", calculate_waste (solution))
+    print("Computation time :", computation_time)
     print("Solution:")
     for stock_index, activities in solution:
         for activity in activities:
             pieces = [piece_lengths[piece_index] for piece_index in activity]
-            print(f"  Pieces cut: {pieces}")
+            print(f"Stock Type {stock_index} (Length {stock_lengths[stock_index]}): Pieces cut: {pieces}")
 
 # Main execution block
 if __name__ == "__main__":
